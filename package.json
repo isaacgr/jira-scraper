@@ -1,0 +1,53 @@
+{
+  "name": "jira-scraper",
+  "version": "1.0.0",
+  "description": "GraphQL api for jira and stash",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "server": "nodemon server.js -L",
+    "client-start": "react-scripts start",
+    "build": "react-scripts build",
+    "heroku-postbuild": "npm run build",
+    "client": "npm start --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client-start\""
+  },
+  "author": "Isaac Rowell",
+  "license": "ISC",
+  "dependencies": {
+    "@apollo/client": "^3.3.16",
+    "axios": "^0.21.1",
+    "classnames": "^2.3.1",
+    "concurrently": "^6.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "express-graphql": "^0.12.0",
+    "graphql": "^15.5.0",
+    "moment": "^2.29.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-router-dom": "^5.2.0",
+    "react-scripts": "4.0.3",
+    "web-vitals": "^1.0.1"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:5000"
+}
