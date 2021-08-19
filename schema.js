@@ -8,98 +8,27 @@ const {
   GraphQLScalarType
 } = require("graphql");
 
+const {
+  IssueResultType,
+  RepositoryType,
+  CommentResultType,
+  IssueType,
+  StashProjectResultsType,
+  StashRepoCommitResultsType,
+  StashRepoPullRequestResultsType,
+  DateType
+} = require("./types");
+
 const moment = require("moment");
 const axios = require("axios");
 const jiraUrl = `${process.env.JIRA_URL}`;
-
-const isValidDate = (dateString) => {
-  const regEx = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dateString.match(regEx)) {
-    return null;
-  } // Invalid format
-  const d = new Date(dateString);
-  const dNum = d.getTime();
-  if (!dNum && dNum !== 0) {
-    return null;
-  } // NaN value, Invalid date
-  return dateString;
-};
-
-const PersonType = new GraphQLObjectType({
-  name: "Person",
-  fields: () => ({
-    name: { type: GraphQLString },
-    displayName: { type: GraphQLString }
-  })
-});
-
-const FieldType = new GraphQLObjectType({
-  name: "Fields",
-  fields: () => ({
-    assignee: { type: PersonType },
-    reporter: { type: PersonType },
-    creator: { type: PersonType },
-    created: { type: GraphQLString },
-    updated: { type: GraphQLString },
-    summary: { type: GraphQLString },
-    description: { type: GraphQLString }
-  })
-});
-
-const IssueType = new GraphQLObjectType({
-  name: "Issues",
-  fields: () => ({
-    id: { type: GraphQLString },
-    key: { type: GraphQLString },
-    fields: { type: FieldType }
-  })
-});
-
-const IssueResultType = new GraphQLObjectType({
-  name: "IssueResults",
-  fields: () => ({
-    total: { type: GraphQLInt },
-    issues: { type: GraphQLList(IssueType) }
-  })
-});
-
-const DateType = new GraphQLScalarType({
-  name: "Date",
-  description: "Date custom scalar type",
-  serialize: isValidDate,
-  parseValue: isValidDate,
-  parseLiteral(ast) {
-    if (ast.kind === Kind.INT) {
-      return isValidDate(ast.value);
-    }
-    return null;
-  }
-});
-
-const CommitType = new GraphQLObjectType({
-  name: "Commit",
-  fields: () => ({
-    id: { type: GraphQLString },
-    displayId: { type: GraphQLString },
-    authorTimestamp: { type: GraphQLString },
-    url: { type: GraphQLString },
-    author: { type: PersonType },
-    message: { type: GraphQLString }
-  })
-});
-
-const RepositoryType = new GraphQLObjectType({
-  name: "Respository",
-  fields: () => ({
-    name: { type: GraphQLString },
-    commits: { type: GraphQLList(CommitType) }
-  })
-});
+const stashUrl = `${process.env.STASH_URL}`;
 
 const RootQuery = new GraphQLObjectType({
   name: "RootQueryType",
   fields: {
     projectIssues: {
+      name: "JiraIssues",
       type: IssueResultType,
       args: {
         projectId: { type: GraphQLString },
@@ -118,7 +47,62 @@ const RootQuery = new GraphQLObjectType({
         }).then((res) => res.data);
       }
     },
+    issue: {
+      name: "Issue",
+      type: IssueType,
+      args: {
+        issueIdOrKey: { type: GraphQLString }
+      },
+      resolve(parent, args) {
+        return axios({
+          method: "get",
+          url: `${jiraUrl}/rest/api/latest/issue/${issueIdOrKey}`,
+          headers: {
+            Authorization:
+              "Basic " +
+              base64encode(`${process.env.JIRA_USER}:${process.env.JIRA_PASS}`)
+          }
+        }).then((res) => res.data);
+      }
+    },
+    issueComments: {
+      name: "IssueComments",
+      type: CommentResultType,
+      args: {
+        issueIdOrKey: { type: GraphQLString }
+      },
+      resolve(parent, args) {
+        return axios({
+          method: "get",
+          url: `${jiraUrl}/rest/api/latest/issue/${issueIdOrKey}/comment`,
+          headers: {
+            Authorization:
+              "Basic " +
+              base64encode(`${process.env.JIRA_USER}:${process.env.JIRA_PASS}`)
+          }
+        }).then((res) => res.data.detail.repositories);
+      }
+    },
+    issueCommits: {
+      name: "IssueCommits",
+      type: new GraphQLList(RepositoryType),
+      args: {
+        issueId: { type: GraphQLString }
+      },
+      resolve(parent, args) {
+        return axios({
+          method: "get",
+          url: `${jiraUrl}/rest/dev-status/1.0/issue/detail?issueId=${args.issueId}&applicationType=stash&dataType=repository`,
+          headers: {
+            Authorization:
+              "Basic " +
+              base64encode(`${process.env.JIRA_USER}:${process.env.JIRA_PASS}`)
+          }
+        }).then((res) => res.data.detail.repositories);
+      }
+    },
     userIssues: {
+      name: "UserIssues",
       type: IssueResultType,
       args: {
         project: { type: GraphQLString },
@@ -157,41 +141,75 @@ const RootQuery = new GraphQLObjectType({
         }).then((res) => res.data);
       }
     },
-    issueCommits: {
-      name: "IssueCommits",
-      type: new GraphQLList(RepositoryType),
-      args: {
-        issueId: { type: GraphQLString },
-        issueKey: { type: GraphQLString, defaultValue: null }
-      },
+    stashProjects: {
+      name: "StashProjects",
+      type: StashProjectResultsType,
       resolve(parent, args) {
         return axios({
           method: "get",
-          url: `${jiraUrl}/rest/dev-status/1.0/issue/detail?issueId=${args.issueId}&applicationType=stash&dataType=repository`,
+          url: `${stashUrl}/projects`,
           headers: {
             Authorization:
               "Basic " +
               base64encode(`${process.env.JIRA_USER}:${process.env.JIRA_PASS}`)
           }
-        }).then((res) => res.data.detail.repositories);
+        }).then((res) => res.data);
       }
     },
-    issueComments: {
-      name: "IssueComments",
-      type: CommentResultType,
+    stashProjectRepositories: {
+      name: "StashProjectRepos",
+      type: StashProjectResultsType,
       args: {
-        issueIdOrKey: { type: GraphQLString }
+        projectKey: { type: GraphQLString }
       },
       resolve(parent, args) {
         return axios({
           method: "get",
-          url: `${jiraUrl}/rest/api/latest/issue/${issueIdOrKey}/comment`,
+          url: `${stashUrl}/projects/${args.projectKey}/repos`,
           headers: {
             Authorization:
               "Basic " +
               base64encode(`${process.env.JIRA_USER}:${process.env.JIRA_PASS}`)
           }
-        }).then((res) => res.data.detail.repositories);
+        }).then((res) => res.data);
+      }
+    },
+    stashRepoCommits: {
+      name: "StashRepoCommits",
+      type: StashRepoCommitResultsType,
+      args: {
+        projectKey: { type: GraphQLString },
+        repoSlug: { type: GraphQLString }
+      },
+      resolve(parent, args) {
+        return axios({
+          method: "get",
+          url: `${stashUrl}/projects/${args.projectKey}/repos/${args.repoSlug}/commits?state=all&order=newest`,
+          headers: {
+            Authorization:
+              "Basic " +
+              base64encode(`${process.env.JIRA_USER}:${process.env.JIRA_PASS}`)
+          }
+        }).then((res) => res.data);
+      }
+    },
+    stashRepoPullRequests: {
+      name: "StashRepoPullRequests",
+      type: StashRepoPullRequestResultsType,
+      args: {
+        projectKey: { type: GraphQLString },
+        repoSlug: { type: GraphQLString }
+      },
+      resolve(parent, args) {
+        return axios({
+          method: "get",
+          url: `${stashUrl}/projects/${args.projectKey}/repos/${args.repoSlug}/pull-requests?state=all&order=newest`,
+          headers: {
+            Authorization:
+              "Basic " +
+              base64encode(`${process.env.JIRA_USER}:${process.env.JIRA_PASS}`)
+          }
+        }).then((res) => res.data);
       }
     }
   }
