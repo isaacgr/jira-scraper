@@ -13,9 +13,7 @@ const {
   RepositoryType,
   CommentResultType,
   IssueType,
-  StashProjectResultsType,
-  StashRepoCommitResultsType,
-  StashRepoPullRequestResultsType,
+  StashResultsType,
   DateType
 } = require("./types");
 
@@ -143,7 +141,7 @@ const RootQuery = new GraphQLObjectType({
     },
     stashProjects: {
       name: "StashProjects",
-      type: StashProjectResultsType,
+      type: StashResultsType,
       resolve(parent, args) {
         return axios({
           method: "get",
@@ -158,7 +156,7 @@ const RootQuery = new GraphQLObjectType({
     },
     stashProjectRepositories: {
       name: "StashProjectRepos",
-      type: StashProjectResultsType,
+      type: StashResultsType,
       args: {
         projectKey: { type: GraphQLString }
       },
@@ -176,7 +174,7 @@ const RootQuery = new GraphQLObjectType({
     },
     stashRepoCommits: {
       name: "StashRepoCommits",
-      type: StashRepoCommitResultsType,
+      type: StashResultsType,
       args: {
         projectKey: { type: GraphQLString },
         repoSlug: { type: GraphQLString }
@@ -195,7 +193,7 @@ const RootQuery = new GraphQLObjectType({
     },
     stashRepoPullRequests: {
       name: "StashRepoPullRequests",
-      type: StashRepoPullRequestResultsType,
+      type: StashResultsType,
       args: {
         projectKey: { type: GraphQLString },
         repoSlug: { type: GraphQLString }

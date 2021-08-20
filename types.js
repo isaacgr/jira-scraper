@@ -7,7 +7,8 @@ const {
   GraphQLInt,
   GraphQLScalarType,
   GraphQLBoolean,
-  Kind
+  Kind,
+  GraphQLUnionType
 } = require("graphql");
 
 const isValidDate = (dateString) => {
@@ -142,16 +143,6 @@ const RepositoryType = new GraphQLObjectType({
   })
 });
 
-const StashValueType = new GraphQLObjectType({
-  name: "StashValue",
-  fields: () => ({
-    key: { type: GraphQLString },
-    id: { type: GraphQLInt },
-    name: { type: GraphQLString },
-    slug: { type: GraphQLString }
-  })
-});
-
 const StashCommitType = new GraphQLObjectType({
   name: "StashCommit",
   fields: () => ({
@@ -195,32 +186,32 @@ const StashPullRequestType = new GraphQLObjectType({
   })
 });
 
-const StashRepoPullRequestResultsType = new GraphQLObjectType({
-  name: "StashRepoPullRequestResults",
+const StashProjectType = new GraphQLObjectType({
+  name: "StashProjectValue",
   fields: () => ({
-    size: { type: GraphQLInt },
-    limit: { type: GraphQLInt },
-    isLastPage: { type: GraphQLBoolean },
-    start: { type: GraphQLInt },
-    nextPageStart: { type: GraphQLInt },
-    values: { type: GraphQLList(StashPullRequestType) }
+    key: { type: GraphQLString },
+    id: { type: GraphQLInt },
+    name: { type: GraphQLString },
+    slug: { type: GraphQLString }
   })
 });
 
-const StashRepoCommitResultsType = new GraphQLObjectType({
-  name: "StashRepoCommitResults",
-  fields: () => ({
-    size: { type: GraphQLInt },
-    limit: { type: GraphQLInt },
-    isLastPage: { type: GraphQLBoolean },
-    start: { type: GraphQLInt },
-    nextPageStart: { type: GraphQLInt },
-    values: { type: GraphQLList(StashCommitType) }
-  })
+const StashValueType = new GraphQLUnionType({
+  name: "StashValue",
+  types: [StashProjectType, StashPullRequestType, StashCommitType],
+  resolveType(value) {
+    if (value.slug || value.key) {
+      return StashProjectType;
+    } else if (value.committer) {
+      return StashCommitType;
+    } else if (value.reviewers) {
+      return StashPullRequestType;
+    }
+  }
 });
 
-const StashProjectResultsType = new GraphQLObjectType({
-  name: "StashProjectResults",
+const StashResultsType = new GraphQLObjectType({
+  name: "StashResults",
   fields: () => ({
     size: { type: GraphQLInt },
     limit: { type: GraphQLInt },
@@ -236,8 +227,6 @@ module.exports = {
   RepositoryType,
   CommentResultType,
   IssueType,
-  StashProjectResultsType,
-  StashRepoCommitResultsType,
-  StashRepoPullRequestResultsType,
+  StashResultsType,
   DateType
 };
